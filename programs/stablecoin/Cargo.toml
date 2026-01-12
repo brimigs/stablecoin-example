@@ -21,13 +21,18 @@ custom-panic = []
 
 
 [dependencies]
-anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
-anchor-spl = "0.30.1"
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = "0.31.1"
 
 
 [dev-dependencies]
-litesvm = "0.3"
-solana-sdk = "=2.0.25"
+litesvm = "0.6.1"
+anchor-litesvm = "0.2.0"
+litesvm-utils = "0.2.0"
+litesvm-token = "0.6.1"
+solana-sdk = "2.2"
+anchor-lang = "0.31.1"
+spl-associated-token-account = "6.0"
 sha2 = "0.10"
 
 [lints.rust]
