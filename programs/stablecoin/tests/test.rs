@@ -1,12 +1,15 @@
-use anchor_litesvm::AnchorLiteSVM;
-use litesvm_token::spl_token;
+use anchor_litesvm::{AnchorLiteSVM, Keypair, Pubkey, Signer};
+use anchor_spl::associated_token::get_associated_token_address;
 use litesvm_utils::{AssertionHelpers, TestHelpers};
-use solana_sdk::signature::{Keypair, Signer};
-use spl_associated_token_account::get_associated_token_address;
 
 // Declare the program to generate client types
 anchor_lang::declare_program!(stablecoin);
 use self::stablecoin::{client, ID as PROGRAM_ID};
+
+// Program IDs
+const TOKEN_PROGRAM_ID: Pubkey = anchor_spl::token::ID;
+const ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey = anchor_spl::associated_token::ID;
+const SYSTEM_PROGRAM_ID: Pubkey = anchor_lang::system_program::ID;
 
 // Helper to create an initialized test context
 fn setup_ctx() -> anchor_litesvm::AnchorContext {
@@ -17,16 +20,20 @@ fn setup_ctx() -> anchor_litesvm::AnchorContext {
 }
 
 // Helper to get PDAs
-fn get_config_pda() -> solana_sdk::pubkey::Pubkey {
-    solana_sdk::pubkey::Pubkey::find_program_address(&[b"config"], &PROGRAM_ID).0
+fn get_config_pda() -> Pubkey {
+    Pubkey::find_program_address(&[b"config"], &PROGRAM_ID).0
 }
 
-fn get_mint_pda() -> solana_sdk::pubkey::Pubkey {
-    solana_sdk::pubkey::Pubkey::find_program_address(&[b"mint"], &PROGRAM_ID).0
+fn get_mint_pda() -> Pubkey {
+    Pubkey::find_program_address(&[b"mint"], &PROGRAM_ID).0
 }
 
-fn get_minter_config_pda(minter: &solana_sdk::pubkey::Pubkey) -> solana_sdk::pubkey::Pubkey {
-    solana_sdk::pubkey::Pubkey::find_program_address(&[b"minter", minter.as_ref()], &PROGRAM_ID).0
+fn get_minter_config_pda(minter: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[b"minter", minter.as_ref()], &PROGRAM_ID).0
+}
+
+fn get_ata(wallet: &Pubkey, mint: &Pubkey) -> Pubkey {
+    get_associated_token_address(wallet, mint)
 }
 
 // ============================================================================
@@ -47,8 +54,8 @@ fn test_initialize() {
             admin: admin.pubkey(),
             config: config_pda,
             mint: mint_pda,
-            token_program: spl_token::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::Initialize {})
         .instruction()
@@ -77,8 +84,8 @@ fn test_initialize_twice_fails() {
             admin: admin.pubkey(),
             config: config_pda,
             mint: mint_pda,
-            token_program: spl_token::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::Initialize {})
         .instruction()
@@ -96,8 +103,8 @@ fn test_initialize_twice_fails() {
             admin: admin.pubkey(),
             config: config_pda,
             mint: mint_pda,
-            token_program: spl_token::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::Initialize {})
         .instruction()
@@ -124,8 +131,8 @@ fn initialize_program(ctx: &mut anchor_litesvm::AnchorContext, admin: &Keypair) 
             admin: admin.pubkey(),
             config: config_pda,
             mint: mint_pda,
-            token_program: spl_token::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::Initialize {})
         .instruction()
@@ -156,7 +163,7 @@ fn test_configure_minter() {
             config: config_pda,
             minter: minter.pubkey(),
             minter_config: minter_config_pda,
-            system_program: solana_sdk::system_program::id(),
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::ConfigureMinter { allowance })
         .instruction()
@@ -194,7 +201,7 @@ fn test_configure_minter_unauthorized() {
             config: config_pda,
             minter: minter.pubkey(),
             minter_config: minter_config_pda,
-            system_program: solana_sdk::system_program::id(),
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::ConfigureMinter { allowance })
         .instruction()
@@ -228,7 +235,7 @@ fn test_update_minter_allowance() {
             config: config_pda,
             minter: minter.pubkey(),
             minter_config: minter_config_pda,
-            system_program: solana_sdk::system_program::id(),
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::ConfigureMinter {
             allowance: allowance1,
@@ -250,7 +257,7 @@ fn test_update_minter_allowance() {
             config: config_pda,
             minter: minter.pubkey(),
             minter_config: minter_config_pda,
-            system_program: solana_sdk::system_program::id(),
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::ConfigureMinter {
             allowance: allowance2,
@@ -270,7 +277,7 @@ fn test_update_minter_allowance() {
 fn configure_minter(
     ctx: &mut anchor_litesvm::AnchorContext,
     admin: &Keypair,
-    minter: &solana_sdk::pubkey::Pubkey,
+    minter: &Pubkey,
     allowance: u64,
 ) {
     let config_pda = get_config_pda();
@@ -283,7 +290,7 @@ fn configure_minter(
             config: config_pda,
             minter: *minter,
             minter_config: minter_config_pda,
-            system_program: solana_sdk::system_program::id(),
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::ConfigureMinter { allowance })
         .instruction()
@@ -352,7 +359,7 @@ fn test_mint_tokens() {
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&minter.pubkey());
-    let destination_ata = get_associated_token_address(&recipient.pubkey(), &mint_pda);
+    let destination_ata = get_ata(&recipient.pubkey(), &mint_pda);
 
     let mint_amount: u64 = 100_000_000;
 
@@ -365,9 +372,9 @@ fn test_mint_tokens() {
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: recipient.pubkey(),
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens {
             amount: mint_amount,
@@ -401,7 +408,7 @@ fn test_mint_exceeds_allowance() {
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&minter.pubkey());
-    let destination_ata = get_associated_token_address(&recipient.pubkey(), &mint_pda);
+    let destination_ata = get_ata(&recipient.pubkey(), &mint_pda);
 
     // Try to mint more than allowance
     let mint_amount: u64 = 200_000_000; // 200 tokens (exceeds 100 allowance)
@@ -415,9 +422,9 @@ fn test_mint_exceeds_allowance() {
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: recipient.pubkey(),
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens {
             amount: mint_amount,
@@ -446,7 +453,7 @@ fn test_mint_unauthorized() {
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&unauthorized.pubkey());
-    let destination_ata = get_associated_token_address(&recipient.pubkey(), &mint_pda);
+    let destination_ata = get_ata(&recipient.pubkey(), &mint_pda);
 
     let mint_amount: u64 = 100_000_000;
 
@@ -459,9 +466,9 @@ fn test_mint_unauthorized() {
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: recipient.pubkey(),
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens {
             amount: mint_amount,
@@ -483,13 +490,13 @@ fn test_mint_unauthorized() {
 fn mint_tokens(
     ctx: &mut anchor_litesvm::AnchorContext,
     minter: &Keypair,
-    recipient: &solana_sdk::pubkey::Pubkey,
+    recipient: &Pubkey,
     amount: u64,
 ) {
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&minter.pubkey());
-    let destination_ata = get_associated_token_address(recipient, &mint_pda);
+    let destination_ata = get_ata(recipient, &mint_pda);
 
     let ix = ctx
         .program()
@@ -500,9 +507,9 @@ fn mint_tokens(
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: *recipient,
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens { amount })
         .instruction()
@@ -527,7 +534,7 @@ fn test_burn_tokens() {
 
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
-    let user_ata = get_associated_token_address(&user.pubkey(), &mint_pda);
+    let user_ata = get_ata(&user.pubkey(), &mint_pda);
 
     // Burn tokens
     let burn_amount: u64 = 50_000_000;
@@ -539,7 +546,7 @@ fn test_burn_tokens() {
             config: config_pda,
             mint: mint_pda,
             token_account: user_ata,
-            token_program: spl_token::id(),
+            token_program: TOKEN_PROGRAM_ID,
         })
         .args(client::args::BurnTokens {
             amount: burn_amount,
@@ -569,7 +576,7 @@ fn test_burn_more_than_balance() {
 
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
-    let user_ata = get_associated_token_address(&user.pubkey(), &mint_pda);
+    let user_ata = get_ata(&user.pubkey(), &mint_pda);
 
     // Try to burn more than balance
     let burn_amount: u64 = 200_000_000; // 200 tokens (only have 100)
@@ -581,7 +588,7 @@ fn test_burn_more_than_balance() {
             config: config_pda,
             mint: mint_pda,
             token_account: user_ata,
-            token_program: spl_token::id(),
+            token_program: TOKEN_PROGRAM_ID,
         })
         .args(client::args::BurnTokens {
             amount: burn_amount,
@@ -684,7 +691,7 @@ fn test_mint_when_paused() {
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&minter.pubkey());
-    let destination_ata = get_associated_token_address(&recipient.pubkey(), &mint_pda);
+    let destination_ata = get_ata(&recipient.pubkey(), &mint_pda);
 
     // Try to mint when paused
     let mint_amount: u64 = 100_000_000;
@@ -698,9 +705,9 @@ fn test_mint_when_paused() {
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: recipient.pubkey(),
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens {
             amount: mint_amount,
@@ -772,7 +779,7 @@ fn test_mint_after_unpause() {
     // Now mint should work
     let mint_pda = get_mint_pda();
     let minter_config_pda = get_minter_config_pda(&minter.pubkey());
-    let destination_ata = get_associated_token_address(&recipient.pubkey(), &mint_pda);
+    let destination_ata = get_ata(&recipient.pubkey(), &mint_pda);
 
     let mint_amount: u64 = 100_000_000;
 
@@ -785,9 +792,9 @@ fn test_mint_after_unpause() {
             mint: mint_pda,
             destination: destination_ata,
             destination_owner: recipient.pubkey(),
-            token_program: spl_token::id(),
-            associated_token_program: spl_associated_token_account::id(),
-            system_program: solana_sdk::system_program::id(),
+            token_program: TOKEN_PROGRAM_ID,
+            associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+            system_program: SYSTEM_PROGRAM_ID,
         })
         .args(client::args::MintTokens {
             amount: mint_amount,
@@ -830,7 +837,7 @@ fn test_full_stablecoin_flow() {
     // 5. User1 burns some tokens
     let config_pda = get_config_pda();
     let mint_pda = get_mint_pda();
-    let user1_ata = get_associated_token_address(&user1.pubkey(), &mint_pda);
+    let user1_ata = get_ata(&user1.pubkey(), &mint_pda);
 
     let burn_amount: u64 = 50_000_000;
 
@@ -841,7 +848,7 @@ fn test_full_stablecoin_flow() {
             config: config_pda,
             mint: mint_pda,
             token_account: user1_ata,
-            token_program: spl_token::id(),
+            token_program: TOKEN_PROGRAM_ID,
         })
         .args(client::args::BurnTokens {
             amount: burn_amount,
@@ -917,7 +924,7 @@ fn test_multiple_minters() {
 
     // Verify user received tokens from both minters
     let mint_pda = get_mint_pda();
-    let user_ata = get_associated_token_address(&user.pubkey(), &mint_pda);
+    let user_ata = get_ata(&user.pubkey(), &mint_pda);
 
     assert!(
         ctx.account_exists(&user_ata),

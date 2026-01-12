@@ -76,7 +76,7 @@ pub mod stablecoin {
         // Mint tokens to the destination account
         mint_to(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 MintTo {
                     mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.destination.to_account_info(),
@@ -98,7 +98,7 @@ pub mod stablecoin {
     pub fn burn_tokens(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         burn(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 Burn {
                     mint: ctx.accounts.mint.to_account_info(),
                     from: ctx.accounts.token_account.to_account_info(),

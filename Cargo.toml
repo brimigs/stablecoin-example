@@ -4,6 +4,10 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+# Pin base64ct to avoid edition2024 requirement
+base64ct = ">=1.0.0, <1.8.0"
+
 [profile.release]
 overflow-checks = true
 lto = "fat"
